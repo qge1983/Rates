@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import Logo from "./Logo";
 
-const USERNAME = "QGE@1983";
-const PASSWORD_SHA256 = "9033d010904f493397296c5cdb334b211e12868b17c83ac1fc198ce756289284";
+const USERNAME_SHA256 = "f785a45de055b37ca271f265d5d7d248a29c0984c4bb013c0271ebf492750ed3";
+const PASSWORD_SHA256 = "e0bc60c82713f64ef8a57c0c40d02ce24fd0141d5cc3086259c19b1e62a62bea";
 
 async function sha256(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
