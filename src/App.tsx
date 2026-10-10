@@ -8,6 +8,11 @@ import { formatRate, isHaier, latestOnly, loadRates, MONTHS, norm, searchScore, 
 const AUTH_KEY = "qge_auth_v1";
 const PAGE = 48;
 
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 type SortKey = "az" | "low" | "high";
 const SORT_LABEL: Record<SortKey, string> = { az: "A – Z", low: "Price ↑", high: "Price ↓" };
 
@@ -49,6 +54,11 @@ function Portal({ onLogout }: { onLogout: () => void }) {
   const [limit, setLimit] = useState(PAGE);
   const [toast, setToast] = useState("");
   const [showTop, setShowTop] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [appInstalled, setAppInstalled] = useState(
+    window.matchMedia("(display-mode: standalone)").matches ||
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+  );
 
   const topRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -69,6 +79,36 @@ function Portal({ onLogout }: { onLogout: () => void }) {
     }
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
+
+  /* ---------- Chrome / Edge install prompt ---------- */
+  useEffect(() => {
+    const onInstallAvailable = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setAppInstalled(true);
+      setInstallPrompt(null);
+      showToast("Qaiser Rates installed successfully");
+    };
+    window.addEventListener("beforeinstallprompt", onInstallAvailable);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onInstallAvailable);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  const installApp = async () => {
+    if (!installPrompt) {
+      showToast("Chrome menu ⋮ → Cast, save and share → Install page as app");
+      return;
+    }
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") showToast("Installing Qaiser Rates…");
+    setInstallPrompt(null);
+  };
 
   /* ---------- Header hide on scroll ---------- */
   useEffect(() => {
@@ -222,6 +262,20 @@ function Portal({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              {!appInstalled && (
+                <button
+                  onClick={installApp}
+                  title="Install Qaiser Rates as an app"
+                  aria-label="Install Qaiser Rates as an app"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2" />
+                  </svg>
+                  <span className="hidden sm:inline">Install App</span>
+                  <span className="sm:hidden">Install</span>
+                </button>
+              )}
               <button
                 onClick={refresh}
                 title="Refresh rates"
