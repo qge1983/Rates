@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Login from "./components/Login";
 import Logo from "./components/Logo";
 import Dropdown, { type Option } from "./components/Dropdown";
-import RateCard from "./components/RateCard";
-import { latestOnly, loadRates, MONTHS, norm, searchScore, type LoadResult, type RateItem, type RateValue } from "./lib/rates";
+import RateCard, { shareText } from "./components/RateCard";
+import { formatRate, isHaier, latestOnly, loadRates, MONTHS, norm, searchScore, type LoadResult, type RateItem, type RateValue } from "./lib/rates";
 
 const AUTH_KEY = "qge_auth_v1";
 const PAGE = 48;
@@ -42,6 +42,7 @@ function Portal({ onLogout }: { onLogout: () => void }) {
   const [product, setProduct] = useState("");
   const [openDD, setOpenDD] = useState<"" | "company" | "product">("");
   const [sort, setSort] = useState<SortKey>("az");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [headerHidden, setHeaderHidden] = useState(false);
   const [topH, setTopH] = useState(170);
   const [limit, setLimit] = useState(PAGE);
@@ -337,22 +338,41 @@ function Portal({ onLogout }: { onLogout: () => void }) {
                 Clear all
               </button>
             )}
-            <button
-              onClick={() => setSort((s) => (s === "az" ? "low" : s === "low" ? "high" : "az"))}
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition hover:border-neutral-300"
-              title="Change sorting"
-            >
-              <svg className="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h12M3 12h8m-8 5h4m10-9v12m0 0l-3-3m3 3l3-3" />
-              </svg>
-              {SORT_LABEL[sort]}
-            </button>
+            <label className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700">
+              <span className="text-neutral-400">Sort</span>
+              <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="max-w-[132px] bg-transparent py-0.5 outline-none focus:text-red-700" aria-label="Sort rates">
+                <option value="az">A–Z</option>
+                <option value="low">Lowest cash</option>
+                <option value="high">Highest cash</option>
+              </select>
+            </label>
+            <div className="inline-flex rounded-full border border-neutral-200 bg-white p-0.5" role="group" aria-label="Result layout">
+              <button onClick={() => setViewMode("cards")} aria-pressed={viewMode === "cards"} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${viewMode === "cards" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}>Cards</button>
+              <button onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${viewMode === "list" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}>List</button>
+            </div>
           </div>
         </div>
 
+        {(query || company || product) && (
+          <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Active filters">
+            <span className="text-xs font-semibold text-neutral-500">Filters:</span>
+            {query && <button onClick={() => setQuery("")} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">Search: {query}<span aria-hidden="true">×</span></button>}
+            {company && <button onClick={() => setCompany("")} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{companyOptions.find(o => o.value === company)?.label ?? company}<span aria-hidden="true">×</span></button>}
+            {product && <button onClick={() => setProduct("")} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{productOptions.find(o => o.value === product)?.label ?? product}<span aria-hidden="true">×</span></button>}
+          </div>
+        )}
+
+        {productOptions.length > 1 && (
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1" aria-label="Quick product filters">
+            <button onClick={() => setProduct("")} className={`min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-bold transition ${!product ? "border-red-600 bg-red-600 text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-red-300"}`}>All products</button>
+            {productOptions.slice(0, 8).map((o) => <button key={o.value} onClick={() => setProduct(product === o.value ? "" : o.value)} className={`min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-bold transition ${product === o.value ? "border-red-600 bg-red-600 text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-red-300"}`}>{o.label}</button>)}
+          </div>
+        )}
+
         {data?.source === "sample" && !loading && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
-            <b>Demo data shown.</b> Upload <code className="rounded bg-amber-100 px-1">rates.xlsx</code> to your GitHub repository (next to index.html) and the live rates will appear here automatically.
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
+            <div><b>Demo data shown.</b> Upload <code className="rounded bg-amber-100 px-1">rates.xlsx</code> to your GitHub repository (next to index.html) for live rates. Do not quote demo prices.</div>
+            <button onClick={refresh} className="min-h-9 shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100">Retry loading</button>
           </div>
         )}
 
@@ -376,11 +396,34 @@ function Portal({ onLogout }: { onLogout: () => void }) {
         {!loading || data ? (
           results.length > 0 ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {results.slice(0, limit).map((it) => (
-                  <RateCard key={it.id} item={it} latestPeriod={latestPeriod} onCopy={copy} />
-                ))}
-              </div>
+              {viewMode === "cards" ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {results.slice(0, limit).map((it) => <RateCard key={it.id} item={it} latestPeriod={latestPeriod} onCopy={copy} />)}
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                      <thead className="bg-neutral-50 text-[11px] uppercase tracking-wider text-neutral-500">
+                        <tr><th className="px-4 py-3 font-bold">Company / Product</th><th className="px-4 py-3 font-bold">Model</th><th className="px-4 py-3 text-right font-bold">Cash</th><th className="px-4 py-3 text-right font-bold">Installment</th><th className="px-4 py-3 text-right font-bold">Fix Rate</th><th className="px-4 py-3 text-right font-bold">Actions</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100">
+                        {results.slice(0, limit).map((it) => (
+                          <tr key={it.id} className="transition hover:bg-red-50/40">
+                            <td className="px-4 py-3"><div className="font-bold text-neutral-800">{it.company}</div><div className="mt-0.5 text-xs text-neutral-500">{it.product}</div></td>
+                            <td className="max-w-[260px] whitespace-normal px-4 py-3 font-semibold text-neutral-900">{it.model}<div className="mt-1 text-[11px] font-medium text-neutral-400">{it.month ? `${MONTHS[it.month - 1]} ${it.year}` : ""}</div></td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-red-700">{formatRate(it.cash)}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-neutral-800">{formatRate(it.installment)}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-neutral-700">{isHaier(it.company) ? formatRate(it.fix) : "—"}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right"><div className="inline-flex items-center gap-2"><button onClick={() => copy(shareText(it))} className="min-h-9 rounded-lg border border-neutral-200 px-3 text-xs font-bold text-neutral-700 hover:border-red-300 hover:text-red-700" aria-label={`Copy ${it.model} rate`}>Copy</button><a href={`https://wa.me/?text=${encodeURIComponent(shareText(it))}`} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center rounded-lg bg-green-50 px-3 text-xs font-bold text-green-700 hover:bg-green-100" aria-label={`Share ${it.model} on WhatsApp`}>WhatsApp</a></div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="border-t border-neutral-100 px-4 py-2 text-xs text-neutral-500">Scroll horizontally to view all price columns on smaller screens.</div>
+                </div>
+              )}
               {limit < results.length && <div ref={sentinel} className="h-10" />}
             </>
           ) : (
