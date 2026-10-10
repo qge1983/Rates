@@ -1,0 +1,20 @@
+{
+  "id": "/Rates/",
+  "name": "Qaiser Group of Electronics — Rate Portal",
+  "short_name": "Qaiser Rates",
+  "description": "Salesman rate portal for Qaiser Group of Electronics.",
+  "start_url": "/Rates/",
+  "scope": "/Rates/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f5f6",
+  "theme_color": "#c8102e",
+  "icons": [
+    {
+      "src": "/Rates/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
