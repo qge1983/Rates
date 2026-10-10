@@ -8,12 +8,13 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// https://vite.dev/config/
-export default defineConfig({
+// Use the repository subpath for GitHub Pages builds, but keep local dev at /.
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/Rates/" : "/",
   plugins: [react(), tailwindcss(), viteSingleFile()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
   },
-});
+}));
