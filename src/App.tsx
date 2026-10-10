@@ -37,6 +37,7 @@ export default function App() {
 function Portal({ onLogout }: { onLogout: () => void }) {
   const [data, setData] = useState<LoadResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState("");
   const [company, setCompany] = useState("");
   const [product, setProduct] = useState("");
@@ -56,9 +57,16 @@ function Portal({ onLogout }: { onLogout: () => void }) {
   /* ---------- Load data ---------- */
   const refresh = useCallback(async () => {
     setLoading(true);
-    const res = await loadRates();
-    setData(res);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const res = await loadRates();
+      setData(res);
+    } catch (error) {
+      console.error("Unable to load rates", error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -167,7 +175,7 @@ function Portal({ onLogout }: { onLogout: () => void }) {
     }, { rootMargin: "600px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [results.length]);
+  }, [results.length, viewMode]);
 
   const totalForCompanyDD = companyOptions.reduce((s, o) => s + o.count, 0);
   const totalForProductDD = productOptions.reduce((s, o) => s + o.count, 0);
@@ -217,7 +225,9 @@ function Portal({ onLogout }: { onLogout: () => void }) {
               <button
                 onClick={refresh}
                 title="Refresh rates"
-                className="rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-red-600"
+                aria-label="Refresh rates"
+                disabled={loading}
+                className="min-h-10 min-w-10 rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-red-600 disabled:cursor-wait disabled:opacity-60"
               >
                 <svg className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -250,6 +260,7 @@ function Portal({ onLogout }: { onLogout: () => void }) {
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setOpenDD("")}
                 placeholder="Search model, company or product…"
+                aria-label="Search model, company or product"
                 className="w-full bg-transparent py-3 text-[15px] outline-none placeholder:text-neutral-400"
                 inputMode="search"
                 enterKeyHint="search"
@@ -389,6 +400,13 @@ function Portal({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {loadError && !loading && !data && (
+          <div role="alert" className="mb-4 flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div><h3 className="font-bold text-neutral-900">Rates could not be loaded</h3><p className="mt-1 text-sm text-neutral-500">Check your connection and try again. Your existing rate data has not been changed.</p></div>
+            <button onClick={refresh} className="min-h-10 shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700">Try again</button>
           </div>
         )}
 
