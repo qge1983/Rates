@@ -1,4 +1,5 @@
 import { useState } from "react";
+import logoUrl from "../logo.png";
 
 export function LogoSvg({ className = "" }: { className?: string }) {
   return (
@@ -40,13 +41,13 @@ export function LogoSvg({ className = "" }: { className?: string }) {
   );
 }
 
-/** Uses logo.png from the repository root if present, otherwise the built-in SVG */
+/** Uses the repository's src/logo.png image, with an SVG fallback. */
 export default function Logo({ className = "" }: { className?: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <LogoSvg className={className} />;
   return (
     <img
-      src="logo.png"
+      src={logoUrl}
       alt="Qaiser Group of Electronics"
       className={`${className} object-contain`}
       onError={() => setFailed(true)}
